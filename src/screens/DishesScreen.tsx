@@ -9,7 +9,6 @@ import {
   TextInput,
   Alert,
   Modal,
-  Pressable,
 } from 'react-native';
 import {useApp} from '../context/AppContext';
 import {DishCategory, Dish} from '../types';
@@ -156,22 +155,22 @@ const DishesScreen: React.FC = () => {
                   <Text style={styles.dishPrice}>${formatPrice(dish.price)}</Text>
                 </View>
                 <View style={styles.dishActions}>
-                  <Pressable
+                  <TouchableOpacity
                     style={styles.editButton}
                     onPress={() => {
                       console.log('EDIT PRESSED FOR:', dish.name);
                       handleOpenModal(dish);
                     }}>
                     <Text style={styles.editButtonText}>✏️</Text>
-                  </Pressable>
-                  <Pressable
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() => {
                       console.log('DELETE PRESSED FOR:', dish.name);
                       handleDeleteDish(dish);
                     }}>
                     <Text style={styles.deleteButtonText}>🗑️</Text>
-                  </Pressable>
+                  </TouchableOpacity>
                 </View>
               </View>
             ))}
@@ -180,14 +179,14 @@ const DishesScreen: React.FC = () => {
       </ScrollView>
 
       {/* Botón Agregar */}
-      <Pressable
+      <TouchableOpacity
         style={styles.addButton}
         onPress={() => {
           console.log('ADD BUTTON PRESSED');
           handleOpenModal();
         }}>
         <Text style={styles.addButtonText}>+ Agregar Plato</Text>
-      </Pressable>
+      </TouchableOpacity>
     </SafeAreaView>
 
     {/* Modal de Formulario - FUERA de SafeAreaView */}

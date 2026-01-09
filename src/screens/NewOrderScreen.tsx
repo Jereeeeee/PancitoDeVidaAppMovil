@@ -28,6 +28,7 @@ const NewOrderScreen: React.FC<NewOrderScreenProps> = ({navigation, route}) => {
   const [selectedTable, setSelectedTable] = useState<number | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [observations, setObservations] = useState<string>('');
   
   const customerName = route?.params?.customerName;
   const customerLocal = route?.params?.customerLocal;
@@ -93,6 +94,7 @@ const NewOrderScreen: React.FC<NewOrderScreenProps> = ({navigation, route}) => {
       total: calculateTotal(),
       createdAt: getChileDate(),
       completed: false,
+      observations: observations.trim() || undefined,
     };
 
     await addOrder(newOrder);
@@ -112,6 +114,7 @@ const NewOrderScreen: React.FC<NewOrderScreenProps> = ({navigation, route}) => {
           onPress: () => {
             setOrderItems([]);
             setSelectedTable(null);
+            setObservations('');
             if (customerName) {
               navigation.goBack();
             } else {
@@ -263,6 +266,20 @@ const NewOrderScreen: React.FC<NewOrderScreenProps> = ({navigation, route}) => {
             <View style={styles.totalSection}>
               <Text style={styles.totalLabel}>Total:</Text>
               <Text style={styles.totalAmount}>${formatPrice(calculateTotal())}</Text>
+            </View>
+
+            {/* Observaciones */}
+            <View style={styles.observationsSection}>
+              <Text style={styles.observationsLabel}>Observaciones (Opcional)</Text>
+              <TextInput
+                style={styles.observationsInput}
+                placeholder="Ej: Sin cebolla, extra queso, alergias..."
+                placeholderTextColor="#999"
+                value={observations}
+                onChangeText={setObservations}
+                multiline={true}
+                numberOfLines={3}
+              />
             </View>
 
             <TouchableOpacity
@@ -490,6 +507,29 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#CD853F', // Dorado oscuro
+  },
+  observationsSection: {
+    marginTop: 15,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
+  observationsLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#A67C52',
+    marginBottom: 8,
+  },
+  observationsInput: {
+    borderWidth: 1,
+    borderColor: '#E8D5C4',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#fff',
+    color: '#333',
+    fontSize: 14,
+    minHeight: 80,
+    textAlignVertical: 'top',
   },
   createButton: {
     backgroundColor: '#E6A45D', // Dorado cálido

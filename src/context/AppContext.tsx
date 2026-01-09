@@ -12,6 +12,7 @@ interface AppContextType {
   updateDish: (dish: Dish) => Promise<void>;
   deleteDish: (id: string) => Promise<void>;
   addOrder: (order: Order) => Promise<void>;
+  updateOrder: (order: Order) => Promise<void>;
   completeOrder: (id: string) => Promise<void>;
   cancelOrder: (id: string) => Promise<void>;
   addFrequentCustomer: (customer: FrequentCustomer) => Promise<void>;
@@ -144,6 +145,13 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({children}) => {
       );
       await saveTables(updatedTables);
     }
+  };
+
+  const updateOrder = async (order: Order) => {
+    const updated = orders.map(o =>
+      o.id === order.id ? order : o
+    );
+    await saveOrders(updated);
   };
 
   const completeOrder = async (id: string) => {
@@ -386,6 +394,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({children}) => {
         updateDish,
         deleteDish,
         addOrder,
+        updateOrder,
         completeOrder,
         cancelOrder,
         addFrequentCustomer,
@@ -400,6 +409,7 @@ export const AppProvider: React.FC<{children: ReactNode}> = ({children}) => {
         updateTableStatus,
         reloadAllData,
         updateOrderPaymentStatus,
+        updateOrder,
       }}>
       {children}
     </AppContext.Provider>

@@ -5,8 +5,10 @@ import {
   StyleSheet,
   SafeAreaView,
   ScrollView,
-  Pressable,
+  TouchableOpacity,
   Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import {useApp} from '../context/AppContext';
 import {formatPrice} from '../utils/sampleData';
@@ -20,24 +22,61 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CustomerOrders'>;
 
 const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
   const {customerName, customerLocal} = route.params;
-  const {getOrdersByCustomer, completeOrder, cancelOrder, updateOrderPaymentStatus} = useApp();
+  const {getOrdersByCustomer, completeOrder, cancelOrder, updateOrderPaymentStatus, updateOrder, dishes} = useApp();
+  
+  const [showEditOrder, setShowEditOrder] = React.useState(false);
+  const [editingOrder, setEditingOrder] = React.useState<any>(null);
+  const [editOrderItems, setEditOrderItems] = React.useState<any[]>([]);
+  const [editObservations, setEditObservations] = React.useState<string>('');
+  const [editSelectedCategory, setEditSelectedCategory] = React.useState<string | null>(null);
+  const categories = ['Desayuno', 'Almuerzo', 'Bebestibles', 'Otros'];
   
   const customerOrders = getOrdersByCustomer(customerName);
+
+  const addEditItemToOrder = (dish: any) => {
+    const existingItem = editOrderItems.find(item => item.dish.id === dish.id);
+    if (existingItem) {
+      setEditOrderItems(
+        editOrderItems.map(item =>
+          item.dish.id === dish.id
+            ? {...item, quantity: item.quantity + 1}
+            : item
+        )
+      );
+    } else {
+      setEditOrderItems([...editOrderItems, {dish, quantity: 1}]);
+    }
+  };
+
+  const removeEditItemFromOrder = (dishId: string) => {
+    const existingItem = editOrderItems.find(item => item.dish.id === dishId);
+    if (existingItem && existingItem.quantity > 1) {
+      setEditOrderItems(
+        editOrderItems.map(item =>
+          item.dish.id === dishId
+            ? {...item, quantity: item.quantity - 1}
+            : item
+        )
+      );
+    } else {
+      setEditOrderItems(editOrderItems.filter(item => item.dish.id !== dishId));
+    }
+  };
 
   return (
     <View style={{flex: 1}}>
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Pressable
+          <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}>
             <Text style={styles.backButtonText}>← Volver</Text>
-          </Pressable>
+          </TouchableOpacity>
           <View style={styles.headerInfo}>
             <Text style={styles.title}>{customerName}</Text>
             <Text style={styles.subtitle}>{customerLocal}</Text>
           </View>
-          <Pressable
+          <TouchableOpacity
             style={styles.addOrderButton}
             onPress={() => {
               (navigation as any).navigate('NewCustomerOrder', {
@@ -46,7 +85,7 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
               });
             }}>
             <Text style={styles.addOrderButtonText}>+</Text>
-          </Pressable>
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.content}>
@@ -89,6 +128,12 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
                     ))}
                   </View>
 
+                  {order.observations && (
+                    <Text style={styles.observationsText}>
+                      📝 Obs: {order.observations}
+                    </Text>
+                  )}
+
                   <View style={styles.orderFooter}>
                     <Text style={styles.orderTotal}>
                       Total: ${formatPrice(order.total)}
@@ -96,7 +141,7 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
                   </View>
 
                   <View style={styles.paymentStatus}>
-                    <Pressable
+                    <TouchableOpacity
                       style={[
                         styles.paymentButton,
                         order.paid ? styles.paidButton : styles.unpaidButton,
@@ -107,22 +152,22 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
                       <Text style={styles.paymentButtonText}>
                         {order.paid ? '✓ Pagado' : '✗ Debe'}
                       </Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   </View>
 
                   <View style={styles.orderActions}>
-                    <Pressable
+                    <TouchableOpacity
                       style={[styles.actionButton, styles.editButton]}
-                      onPress={() =>
-                        Alert.alert(
-                          'Editar Pedido',
-                          'Función de edición pendiente. Ajusta los ítems en una próxima versión.',
-                          [{text: 'Entendido', style: 'default'}],
-                        )
-                      }>
+                      onPress={() => {
+                        setEditingOrder(order);
+                        setEditObservations(order.observations || '');
+                        setEditOrderItems([...order.items]);
+                        setEditSelectedCategory(null);
+                        setShowEditOrder(true);
+                      }}>
                       <Text style={styles.completeButtonText}>Editar</Text>
-                    </Pressable>
-                    <Pressable
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       style={[styles.actionButton, styles.cancelButton]}
                       onPress={() => {
                         Alert.alert(
@@ -142,8 +187,8 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
                         );
                       }}>
                       <Text style={styles.cancelButtonText}>Cancelar</Text>
-                    </Pressable>
-                    <Pressable
+                    </TouchableOpacity>
+                    <TouchableOpacity
                       style={[styles.actionButton, styles.completeButton]}
                       onPress={() => {
                         Alert.alert(
@@ -162,7 +207,7 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
                         );
                       }}>
                       <Text style={styles.completeButtonText}>Completar</Text>
-                    </Pressable>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))}
@@ -170,6 +215,151 @@ const CustomerOrdersScreen: React.FC<Props> = ({route, navigation}) => {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Modal de Edición de Pedido con Selector de Platos */}
+      <Modal
+        visible={showEditOrder}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowEditOrder(false)}>
+        <SafeAreaView style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Editar Pedido</Text>
+            <TouchableOpacity onPress={() => setShowEditOrder(false)}>
+              <Text style={styles.closeIconText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {editingOrder && (
+              <View style={styles.editFormContainer}>
+                {/* Selector de Platos */}
+                <Text style={styles.editSectionTitle}>Agregar o Modificar Platos</Text>
+                
+                {/* Botones de Categorías */}
+                <View style={{flexDirection: 'row', gap: 10}}>
+                  {categories.map(category => (
+                    <TouchableOpacity
+                      key={category}
+                      style={[
+                        styles.categoryButtonEdit,
+                        editSelectedCategory === category && styles.categoryButtonEditActive,
+                      ]}
+                      onPress={() => setEditSelectedCategory(category)}>
+                      <Text
+                        style={[
+                          styles.categoryButtonTextEdit,
+                          editSelectedCategory === category && styles.categoryButtonTextEditActive,
+                        ]}>
+                        {category}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* Lista de Platos */}
+                {editSelectedCategory && dishes.filter(d => d.category === editSelectedCategory).length > 0 && (
+                  <View style={styles.dishGridEdit}>
+                    {dishes.filter(d => d.category === editSelectedCategory).map(dish => (
+                      <TouchableOpacity
+                        key={dish.id}
+                        style={styles.dishCardEdit}
+                        onPress={() => addEditItemToOrder(dish)}>
+                        <Text style={styles.dishNameEdit}>{dish.name}</Text>
+                        <Text style={styles.dishPriceEdit}>${formatPrice(dish.price)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.divider} />
+
+                {/* Ítems Actuales */}
+                <Text style={styles.editSectionTitle}>Ítems del Pedido</Text>
+                {editOrderItems.length > 0 ? (
+                  editOrderItems.map((item: any, idx: number) => (
+                    <View key={`${item.dish.id}-${idx}`} style={styles.editItemCard}>
+                      <View style={styles.editItemContent}>
+                        <View style={{flex: 1}}>
+                          <Text style={styles.editItemName}>{item.quantity}x {item.dish.name}</Text>
+                          <Text style={styles.editItemPrice}>${formatPrice(item.dish.price * item.quantity)}</Text>
+                        </View>
+                        <View style={styles.quantityControls}>
+                          <TouchableOpacity
+                            style={styles.qtyButton}
+                            onPress={() => removeEditItemFromOrder(item.dish.id)}>
+                            <Text style={styles.qtyButtonText}>−</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.qtyText}>{item.quantity}</Text>
+                          <TouchableOpacity
+                            style={styles.qtyButton}
+                            onPress={() => addEditItemToOrder(item.dish)}>
+                            <Text style={styles.qtyButtonText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={styles.emptyText}>Sin ítems en el pedido</Text>
+                )}
+
+                <View style={styles.divider} />
+
+                {/* Observaciones */}
+                <Text style={styles.editSectionTitle}>Observaciones</Text>
+                <TextInput
+                  style={styles.editObservationsInput}
+                  placeholder="Agrega observaciones..."
+                  placeholderTextColor="#999"
+                  value={editObservations}
+                  onChangeText={setEditObservations}
+                  multiline={true}
+                  numberOfLines={3}
+                />
+
+                {/* Total */}
+                {editOrderItems.length > 0 && (
+                  <View style={styles.totalContainer}>
+                    <Text style={styles.totalText}>
+                      Total: ${formatPrice(editOrderItems.reduce((sum, item) => sum + item.dish.price * item.quantity, 0))}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.editButtonsContainer}>
+                  <TouchableOpacity
+                    style={[styles.editModalButton, styles.cancelEditButton]}
+                    onPress={() => setShowEditOrder(false)}>
+                    <Text style={styles.editModalButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.editModalButton, styles.saveEditButton]}
+                    onPress={async () => {
+                      if (editingOrder) {
+                        if (editOrderItems.length === 0) {
+                          Alert.alert('Error', 'El pedido debe tener al menos un plato');
+                          return;
+                        }
+                        const updatedOrder = {
+                          ...editingOrder,
+                          items: editOrderItems,
+                          total: editOrderItems.reduce((sum, item) => sum + item.dish.price * item.quantity, 0),
+                          observations: editObservations.trim() || undefined
+                        };
+                        await updateOrder(updatedOrder);
+                        setShowEditOrder(false);
+                        Alert.alert('Éxito', 'Pedido actualizado');
+                      }
+                    }}>
+                    <Text style={styles.editModalButtonText}>Guardar</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 };
@@ -296,6 +486,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#666',
     fontWeight: '600',
+  observationsText: {
+    marginTop: 6,
+    fontSize: 14,
+    color: '#8B572A',
+  },
     width: 40,
   },
   orderFooter: {
@@ -364,6 +559,190 @@ const styles = StyleSheet.create({
   completeButtonText: {
     color: '#fff',
     fontSize: 14,
+    fontWeight: 'bold',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FFF8F0',
+  },
+  modalHeader: {
+    backgroundColor: '#DAA520',
+    padding: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  closeIconText: {
+    fontSize: 28,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    flex: 1,
+    padding: 16,
+  },
+  editFormContainer: {
+    paddingBottom: 20,
+  },
+  editSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#A67C52',
+    marginBottom: 12,
+    marginTop: 12,
+  },
+  categoryButtonEdit: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    backgroundColor: '#f0f0f0',
+    borderWidth: 1,
+    borderColor: '#E8D5C4',
+  },
+  categoryButtonEditActive: {
+    backgroundColor: '#DAA520',
+    borderColor: '#DAA520',
+  },
+  categoryButtonTextEdit: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#A67C52',
+  },
+  categoryButtonTextEditActive: {
+    color: '#fff',
+  },
+  dishGridEdit: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginVertical: 12,
+  },
+  dishCardEdit: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E8D5C4',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 120,
+  },
+  dishNameEdit: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  dishPriceEdit: {
+    fontSize: 12,
+    color: '#C4A57B',
+    fontWeight: '700',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#e0e0e0',
+    marginVertical: 16,
+  },
+  editItemCard: {
+    backgroundColor: '#f9f9f9',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+    borderLeftWidth: 4,
+    borderLeftColor: '#DAA520',
+  },
+  editItemContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  editItemName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  editItemPrice: {
+    fontSize: 13,
+    color: '#C4A57B',
+  },
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  qtyButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#DAA520',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qtyButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  qtyText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    minWidth: 30,
+    textAlign: 'center',
+  },
+  editObservationsInput: {
+    borderWidth: 1,
+    borderColor: '#E8D5C4',
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: '#fff',
+    color: '#333',
+    fontSize: 14,
+    minHeight: 100,
+    textAlignVertical: 'top',
+  },
+  totalContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+    paddingTop: 8,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  totalText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'right',
+  },
+  editButtonsContainer: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 20,
+  },
+  editModalButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelEditButton: {
+    backgroundColor: '#C4A57B',
+  },
+  saveEditButton: {
+    backgroundColor: '#E6A45D',
+  },
+  editModalButtonText: {
+    color: '#fff',
+    fontSize: 15,
     fontWeight: 'bold',
   },
 });

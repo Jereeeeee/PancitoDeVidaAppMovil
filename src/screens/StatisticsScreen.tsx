@@ -11,7 +11,7 @@ import {useApp} from '../context/AppContext';
 import {formatPrice} from '../utils/sampleData';
 
 const StatisticsScreen: React.FC = () => {
-  const {getTodayStats, getWeeklyStats, getMonthlyStats, getAnnualStats} = useApp();
+  const {getTodayStats, getWeeklyStats, getMonthlyStats, getAnnualStats, orders, frequentCustomers} = useApp();
   const [selectedPeriod, setSelectedPeriod] = useState<'day' | 'week' | 'month' | 'year'>('day');
 
   const getStats = () => {
@@ -28,6 +28,27 @@ const StatisticsScreen: React.FC = () => {
   };
 
   const stats = getStats();
+
+  // Obtener clientes con deudas
+  const getCustomersWithDebts = () => {
+    return frequentCustomers
+      .map(customer => {
+        // Obtener todas las órdenes del cliente (completadas o no) que no están pagadas
+        const unpaidOrders = orders.filter(o => o.customerName === customer.name && !o.paid);
+        const totalDebt = unpaidOrders.reduce((sum, order) => sum + order.total, 0);
+        return {
+          id: customer.id,
+          name: customer.name,
+          local: customer.local,
+          totalDebt,
+          unpaidOrders: unpaidOrders.length,
+        };
+      })
+      .filter(customer => customer.unpaidOrders > 0)
+      .sort((a, b) => b.totalDebt - a.totalDebt);
+  };
+
+  const customersWithDebts = getCustomersWithDebts();
 
   const periodNames = {
     day: 'Diario',
@@ -142,6 +163,35 @@ const StatisticsScreen: React.FC = () => {
             </>
           )}
         </View>
+
+        {/* Clientes Frecuentes con Deudas - Contenedor Destacado */}
+        {customersWithDebts.length > 0 && (
+          <View style={styles.debtSection}>
+            <View style={styles.debtSectionHeader}>
+              <Text style={styles.debtSectionTitle}>⚠️ CLIENTES EN DEBE</Text>
+              <Text style={styles.debtCount}>{customersWithDebts.length}</Text>
+            </View>
+            <View style={styles.debtCardsContainer}>
+              {customersWithDebts.map((customer) => (
+                <View key={customer.id} style={styles.debtCard}>
+                  <View style={styles.debtCardContent}>
+                    <View style={styles.debtInfo}>
+                      <Text style={styles.debtCustomerName}>{customer.name}</Text>
+                      <Text style={styles.debtCustomerLocal}>{customer.local}</Text>
+                      <Text style={styles.debtOrdersInfo}>
+                        {customer.unpaidOrders} pedido{customer.unpaidOrders !== 1 ? 's' : ''} pendiente{customer.unpaidOrders !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.debtAmountBox}>
+                      <Text style={styles.debtValueLabel}>Debe</Text>
+                      <Text style={styles.debtValue}>${formatPrice(customer.totalDebt)}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -319,6 +369,140 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#333',
+  },
+  debtCard: {
+    backgroundColor: '#fff9f5',
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#D2691E',
+  },
+  debtHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  debtInfo: {
+    flex: 1,
+  },
+  debtCustomerName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  debtCustomerLocal: {
+    fontSize: 13,
+    color: '#666',
+  },
+  debtAmount: {
+    alignItems: 'flex-end',
+  },
+  debtValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#D2691E',
+  },
+  debtOrders: {
+    fontSize: 12,
+    color: '#999',
+    marginTop: 4,
+  },
+  debtSection: {
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginVertical: 16,
+    borderWidth: 2,
+    borderColor: '#FF6B35',
+    overflow: 'hidden',
+    shadowColor: '#FF6B35',
+    shadowOffset: {width: 0, height: 3},
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  debtSectionHeader: {
+    backgroundColor: '#FF6B35',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  debtSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  debtCount: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  debtCardsContainer: {
+    padding: 12,
+  },
+  debtCard: {
+    backgroundColor: '#fff',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderLeftWidth: 5,
+    borderLeftColor: '#FF6B35',
+    shadowColor: '#000',
+    shadowOffset: {width: 0, height: 1},
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  debtCardContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  debtInfo: {
+    flex: 1,
+  },
+  debtCustomerName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  debtCustomerLocal: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 6,
+  },
+  debtOrdersInfo: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontWeight: '600',
+  },
+  debtAmountBox: {
+    backgroundColor: '#FFE0D5',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    minWidth: 90,
+  },
+  debtValueLabel: {
+    fontSize: 11,
+    color: '#FF6B35',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  debtValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF6B35',
   },
 });
 

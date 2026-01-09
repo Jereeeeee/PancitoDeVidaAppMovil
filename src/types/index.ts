@@ -38,6 +38,15 @@ export interface Order {
   createdAt: Date;
   completed: boolean;
   paid?: boolean; // Estado de pago para clientes frecuentes (opcional)
+  observations?: string; // Observaciones del pedido
+}
+
+export interface CustomerDebt {
+  customerId: string;
+  customerName: string;
+  local: string;
+  totalDebt: number;
+  unpaidOrders: number;
 }
 
 export interface DailyStat {
